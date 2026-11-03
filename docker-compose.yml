@@ -1,0 +1,84 @@
+services:
+  app:
+    build: .
+    container_name: chatcommerce-app
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      MONGO_URI: mongodb://mongo:27017/chatcommerce
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: chatcommerce-docker-secret-change-in-prod
+      JWT_EXPIRES_IN: 15m
+      LOG_TO_FILE: 'true'
+      SLOW_THRESHOLD_MS: 1000
+      PAYMENT_TIMEOUT_MS: 500
+      PAYMENT_RANDOM_FAIL: 'false'
+      SIMULATE_MSG_FAIL: 'false'
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - chatcommerce-net
+
+  mongo:
+    image: mongo:7
+    container_name: chatcommerce-mongo
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', 'db.adminCommand("ping")']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - chatcommerce-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: chatcommerce-redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - chatcommerce-net
+
+  fluent-bit:
+    image: fluent/fluent-bit:3.0
+    container_name: chatcommerce-fluent-bit
+    volumes:
+      - ./logs:/app/logs:ro
+      - ./fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
+      - ./parsers.conf:/fluent-bit/etc/parsers.conf:ro
+      - ./fluent-bit-state:/fluent-bit/state
+    depends_on:
+      app:
+        condition: service_started
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    restart: unless-stopped
+    networks:
+      - chatcommerce-net
+
+volumes:
+  mongo_data:
+  redis_data:
+
+networks:
+  chatcommerce-net:
+    driver: bridge

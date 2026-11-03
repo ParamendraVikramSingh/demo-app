@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ChatCommerce - Live Demo & Log Tester</title>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card-bg: #131b2e;
+      --border: #1e293b;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --success: #10b981;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 24px;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+    .badge {
+      background: #1e293b;
+      color: #38bdf8;
+      padding: 6px 12px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .card h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #e2e8f0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn:hover { background: var(--accent-hover); }
+    .btn-danger { background: var(--danger); }
+    .btn-danger:hover { background: var(--danger-hover); }
+    .btn-sm { padding: 6px 12px; font-size: 13px; }
+    input, textarea {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px;
+      border-radius: 6px;
+      outline: none;
+    }
+    input:focus, textarea:focus { border-color: var(--accent); }
+    .log-box {
+      background: #030712;
+      border: 1px solid #1f2937;
+      border-radius: 8px;
+      padding: 12px;
+      font-family: monospace;
+      font-size: 12px;
+      height: 180px;
+      overflow-y: auto;
+      color: #38bdf8;
+    }
+    .product-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 250px;
+      overflow-y: auto;
+    }
+    .product-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #0f172a;
+      padding: 10px;
+      border-radius: 6px;
+    }
+    .status-pill {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      margin-right: 6px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>
+      <h1>🛒 ChatCommerce App</h1>
+      <p style="color: var(--text-muted); font-size: 14px; margin-top: 4px;">
+        <span class="status-pill"></span> Connected to LogBox Log Shipper (Fluent-Bit &rarr; Elasticsearch)
+      </p>
+    </div>
+    <div>
+      <a href="http://localhost:5173" target="_blank" class="badge" style="text-decoration: none; border: 1px solid #38bdf8;">
+        📊 Open LogBox Dashboard &rarr;
+      </a>
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- Card 1: Chat / Messages -->
+    <div class="card">
+      <h2>💬 Live Chat Message</h2>
+      <p style="color: var(--text-muted); font-size: 13px;">Send a message to simulate customer service chat:</p>
+      <input type="text" id="chatSender" placeholder="Sender (e.g. Alice)" value="Alice" />
+      <textarea id="chatMessage" rows="3" placeholder="Type a message...">Hi, I want to track my order for iPhone 15!</textarea>
+      <button class="btn" onclick="sendMessage()">Send Chat Message</button>
+    </div>
+
+    <!-- Card 2: E-commerce Products -->
+    <div class="card">
+      <h2>🛍️ Browse Products</h2>
+      <div id="productList" class="product-list">
+        <p style="color: var(--text-muted); font-size: 13px;">Loading products...</p>
+      </div>
+      <button class="btn btn-sm" onclick="fetchProducts()">Refresh Products</button>
+    </div>
+
+    <!-- Card 3: Error Simulator -->
+    <div class="card">
+      <h2>⚠️ Simulate Errors (For RCA)</h2>
+      <p style="color: var(--text-muted); font-size: 13px;">Trigger intentional service failures to test LogBox RCA:</p>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <button class="btn btn-danger btn-sm" onclick="triggerError('db')">Simulate DB Disconnect Error</button>
+        <button class="btn btn-danger btn-sm" onclick="triggerError('redis')">Simulate Redis Cache Failure</button>
+        <button class="btn btn-danger btn-sm" onclick="triggerError('timeout')">Simulate Gateway Timeout (504)</button>
+      </div>
+    </div>
+
+    <!-- Card 4: Console Log -->
+    <div class="card" style="grid-column: 1 / -1;">
+      <h2>📜 Real-time Action Log</h2>
+      <div id="terminal" class="log-box">App ready. Every action here generates a log that ships to LogBox in real-time...</div>
+    </div>
+  </div>
+
+  <script>
+    function logToTerminal(msg) {
+      const term = document.getElementById("terminal");
+      const time = new Date().toLocaleTimeString();
+      term.innerHTML = `[${time}] ${msg}<br/>` + term.innerHTML;
+    }
+
+    async function fetchProducts() {
+      try {
+        const res = await fetch("/api/products");
+        const json = await res.json();
+        const list = document.getElementById("productList");
+        if (json.data?.products?.length > 0) {
+          list.innerHTML = json.data.products.map(p => `
+            <div class="product-item">
+              <div>
+                <strong>${p.name}</strong>
+                <div style="color: var(--text-muted); font-size: 12px;">$${p.price}</div>
+              </div>
+              <button class="btn btn-sm" onclick="orderProduct('${p._id}', '${p.name}')">Buy Now</button>
+            </div>
+          `).join("");
+          logToTerminal("Fetched " + json.data.products.length + " products from API.");
+        }
+      } catch (err) {
+        logToTerminal("Failed to fetch products: " + err.message);
+      }
+    }
+
+    async function orderProduct(id, name) {
+      logToTerminal(`Ordering ${name}... (Generates order logs)`);
+      try {
+        const res = await fetch("/api/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ productId: id })
+        });
+        const json = await res.json();
+        logToTerminal(`Order response: ${json.message || "Submitted"}`);
+      } catch (err) {
+        logToTerminal(`Order error: ${err.message}`);
+      }
+    }
+
+    async function sendMessage() {
+      const text = document.getElementById("chatMessage").value;
+      if (!text) return;
+      logToTerminal(`Sending message: "${text}"`);
+      try {
+        const res = await fetch("/api/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, recipient: "support" })
+        });
+        const json = await res.json();
+        logToTerminal(`Message status: ${json.message || "Sent"}`);
+      } catch (err) {
+        logToTerminal(`Chat error: ${err.message}`);
+      }
+    }
+
+    async function triggerError(type) {
+      logToTerminal(`Triggering simulate-error with type: ${type}...`);
+      try {
+        const res = await fetch("/api/admin/simulate-error", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type })
+        });
+        const json = await res.json();
+        logToTerminal(`Simulate result: ${JSON.stringify(json)}`);
+      } catch (err) {
+        logToTerminal(`Simulation error: ${err.message}`);
+      }
+    }
+
+    fetchProducts();
+  </script>
+</body>
+</html>
+
